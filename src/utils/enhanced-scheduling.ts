@@ -575,6 +575,11 @@ export class EnhancedRedistributionEngine {
     studyPlans.forEach(plan => {
       if (plan.date < today) {
         plan.plannedTasks.forEach(session => {
+          // Skip sessions that are marked as skipped - they should not be redistributed
+          if (session.status === 'skipped') {
+            return;
+          }
+          
           if (session.status === 'missed' || 
               (!session.done && !session.status?.includes('completed') && plan.date < today)) {
             

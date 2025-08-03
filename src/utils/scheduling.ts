@@ -1950,6 +1950,11 @@ export const moveMissedSessions = (
   
   updatedPlans.forEach((plan, planIndex) => {
     plan.plannedTasks.forEach((session, sessionIndex) => {
+      // Skip sessions that are marked as skipped - they should not be redistributed
+      if (session.status === 'skipped') {
+        return;
+      }
+      
       const status = checkSessionStatus(session, plan.date);
       if (status === 'missed') {
         // Calculate priority based on task importance and deadline
@@ -3129,17 +3134,25 @@ export const redistributeMissedSessionsWithFeedback = (
   
   const result = moveMissedSessions(studyPlans, settings, fixedCommitments, tasks);
   
-  // Count total missed sessions
+  // Count total missed sessions (excluding skipped sessions)
   const totalMissed = studyPlans.reduce((count, plan) => {
     return count + plan.plannedTasks.filter(session => {
+      // Skip sessions that are marked as skipped
+      if (session.status === 'skipped') {
+        return false;
+      }
       const status = checkSessionStatus(session, plan.date);
       return status === 'missed';
     }).length;
   }, 0);
   
-  // Count remaining missed sessions after redistribution (excluding overdue sessions from today)
+  // Count remaining missed sessions after redistribution (excluding overdue sessions from today and skipped sessions)
   const remainingMissedSessions = result.updatedPlans.reduce((count, plan) => {
     return count + plan.plannedTasks.filter(session => {
+      // Skip sessions that are marked as skipped
+      if (session.status === 'skipped') {
+        return false;
+      }
       const status = checkSessionStatus(session, plan.date);
       // Only count as missed if it's from a past date, not today's overdue sessions
       return status === 'missed' && plan.date < getLocalDateString();
@@ -3195,9 +3208,13 @@ const handleRedistributionEdgeCases = (
   const issues: string[] = [];
   const suggestions: string[] = [];
   
-  // Check if there are any missed sessions
+  // Check if there are any missed sessions (excluding skipped sessions)
   const missedSessions = studyPlans.reduce((count, plan) => {
     return count + plan.plannedTasks.filter(session => {
+      // Skip sessions that are marked as skipped
+      if (session.status === 'skipped') {
+        return false;
+      }
       const status = checkSessionStatus(session, plan.date);
       return status === 'missed';
     }).length;
@@ -3237,9 +3254,13 @@ const handleRedistributionEdgeCases = (
     }
   }
   
-  // Calculate total missed hours
+  // Calculate total missed hours (excluding skipped sessions)
   const totalMissedHours = studyPlans.reduce((sum, plan) => {
     return sum + plan.plannedTasks.filter(session => {
+      // Skip sessions that are marked as skipped
+      if (session.status === 'skipped') {
+        return false;
+      }
       const status = checkSessionStatus(session, plan.date);
       return status === 'missed';
     }).reduce((planSum, session) => planSum + session.allocatedHours, 0);
