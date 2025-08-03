@@ -3355,3 +3355,137 @@ export const testRedistributionImplementation = (
   
   return { testResults, issues };
 };
+
+/**
+ * Updates the start time of a specific session
+ * @param studyPlans - Array of study plans
+ * @param planDate - Date of the plan containing the session
+ * @param taskId - ID of the task
+ * @param sessionNumber - Session number to identify the specific session
+ * @param newStartTime - New start time in HH:MM format
+ * @param settings - User settings for validation
+ * @param fixedCommitments - Fixed commitments for conflict checking
+ * @returns Object with success status and updated study plans
+ */
+export const updateSessionStartTime = (
+  studyPlans: StudyPlan[],
+  planDate: string,
+  taskId: string,
+  sessionNumber: number,
+  newStartTime: string,
+  settings: UserSettings,
+  fixedCommitments: FixedCommitment[]
+): {
+  success: boolean;
+  updatedPlans: StudyPlan[];
+  message: string;
+  conflicts?: Array<{
+    type: string;
+    message: string;
+  }>;
+} => {
+  // Find the plan for the specified date
+  const planIndex = studyPlans.findIndex(plan => plan.date === planDate);
+  if (planIndex === -1) {
+    return {
+      success: false,
+      updatedPlans: studyPlans,
+      message: 'Study plan not found for the specified date'
+    };
+  }
+
+  const plan = studyPlans[planIndex];
+  
+  // Find the specific session
+  const sessionIndex = plan.plannedTasks.findIndex(session => 
+    session.taskId === taskId && session.sessionNumber === sessionNumber
+  );
+  
+  if (sessionIndex === -1) {
+    return {
+      success: false,
+      updatedPlans: studyPlans,
+      message: 'Session not found'
+    };
+  }
+
+  const session = plan.plannedTasks[sessionIndex];
+  
+  // Validate the new start time format
+  const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  if (!timeRegex.test(newStartTime)) {
+    return {
+      success: false,
+      updatedPlans: studyPlans,
+      message: 'Invalid time format. Please use HH:MM format (e.g., 09:30)'
+    };
+  }
+
+  // Calculate the new end time based on the session duration
+  const [newStartHour, newStartMinute] = newStartTime.split(':').map(Number);
+  const sessionDurationHours = session.allocatedHours;
+  const newEndHour = newStartHour + Math.floor(sessionDurationHours);
+  const newEndMinute = newStartMinute + Math.round((sessionDurationHours % 1) * 60);
+  
+  // Handle minute overflow
+  const finalEndHour = newEndHour + Math.floor(newEndMinute / 60);
+  const finalEndMinute = newEndMinute % 60;
+  
+  const newEndTime = `${finalEndHour.toString().padStart(2, '0')}:${finalEndMinute.toString().padStart(2, '0')}`;
+
+  // Check for conflicts with existing sessions and commitments
+  const conflicts = validateTimeSlot(
+    planDate,
+    newStartTime,
+    newEndTime,
+    plan.plannedTasks.filter(s => s !== session), // Exclude current session from conflict check
+    settings,
+    fixedCommitments
+  );
+
+  if (!conflicts.isValid) {
+    return {
+      success: false,
+      updatedPlans: studyPlans,
+      message: 'Time slot conflicts with existing sessions or commitments',
+      conflicts: conflicts.conflicts
+    };
+  }
+
+  // Check if the new time is within study window
+  const studyWindowStartHour = settings.studyWindowStartHour || 6;
+  const studyWindowEndHour = settings.studyWindowEndHour || 23;
+  
+  if (newStartHour < studyWindowStartHour || finalEndHour > studyWindowEndHour) {
+    return {
+      success: false,
+      updatedPlans: studyPlans,
+      message: `Session must be within study window (${studyWindowStartHour}:00 - ${studyWindowEndHour}:00)`
+    };
+  }
+
+  // Create a copy of the study plans to avoid mutating the original
+  const updatedPlans = [...studyPlans];
+  const updatedPlan = { ...plan };
+  const updatedSessions = [...updatedPlan.plannedTasks];
+  
+  // Update the session with new times
+  const updatedSession = {
+    ...session,
+    startTime: newStartTime,
+    endTime: newEndTime,
+    isManualOverride: true, // Mark as manually edited
+    originalTime: session.startTime, // Store original time for reference
+    originalDate: planDate
+  };
+  
+  updatedSessions[sessionIndex] = updatedSession;
+  updatedPlan.plannedTasks = updatedSessions;
+  updatedPlans[planIndex] = updatedPlan;
+
+  return {
+    success: true,
+    updatedPlans,
+    message: `Session start time updated to ${newStartTime}`
+  };
+};
