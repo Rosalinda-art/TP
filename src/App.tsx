@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, CheckSquare, Clock, Settings as SettingsIcon, BarChart3, CalendarDays, Lightbulb, Edit, Trash2, Menu, X, HelpCircle, Trophy, User } from 'lucide-react';
 import { Task, StudyPlan, UserSettings, FixedCommitment, StudySession, TimerState } from './types';
 import { GamificationData, Achievement, DailyChallenge, MotivationalMessage } from './types-gamification';
-import { generateNewStudyPlan, getUnscheduledMinutesForTasks, getLocalDateString, redistributeAfterTaskDeletion, redistributeMissedSessionsWithFeedback, checkCommitmentConflicts, redistributeMissedSessionsEnhanced } from './utils/scheduling';
+import { generateNewStudyPlan, getUnscheduledMinutesForTasks, getLocalDateString, redistributeAfterTaskDeletion, redistributeMissedSessionsWithFeedback, checkCommitmentConflicts, redistributeMissedSessionsEnhanced, updateSessionStartTime } from './utils/scheduling';
 import { getAccurateUnscheduledTasks, shouldShowNotifications, getNotificationPriority } from './utils/enhanced-notifications';
 import { enhancedEstimationTracker } from './utils/enhanced-estimation-tracker';
 import { RedistributionOptions } from './types';
@@ -1765,6 +1765,27 @@ function App() {
         });
     };
 
+    const handleUpdateSessionStartTime = (planDate: string, taskId: string, sessionNumber: number, newStartTime: string) => {
+        const result = updateSessionStartTime(studyPlans, planDate, taskId, sessionNumber, newStartTime, settings, fixedCommitments);
+        
+        if (result.success) {
+            setStudyPlans(result.updatedPlans);
+            setNotificationMessage(result.message);
+            setTimeout(() => setNotificationMessage(null), 3000);
+        } else {
+            // Create detailed error message with conflict information
+            let errorMessage = result.message;
+            if (result.conflicts && result.conflicts.length > 0) {
+                errorMessage += '\n\nConflicts found:';
+                result.conflicts.forEach((conflict, index) => {
+                    errorMessage += `\n${index + 1}. ${conflict.message}`;
+                });
+            }
+            setNotificationMessage(errorMessage);
+            setTimeout(() => setNotificationMessage(null), 8000); // Longer timeout for detailed errors
+        }
+    };
+
 
 
     // Interactive tutorial handlers
@@ -2102,6 +2123,7 @@ function App() {
                             onSkipMissedSession={handleSkipMissedSession}
                             onRedistributeMissedSessions={handleRedistributeMissedSessions}
                             onEnhancedRedistribution={handleEnhancedRedistribution}
+                            onUpdateSessionStartTime={handleUpdateSessionStartTime}
 
                         />
                     )}

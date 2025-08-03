@@ -16,7 +16,7 @@ interface StudyPlanViewProps {
   onSkipMissedSession: (planDate: string, sessionNumber: number, taskId: string) => void;
   onRedistributeMissedSessions?: () => void; // NEW PROP for redistribution
   onEnhancedRedistribution?: () => void; // Enhanced redistribution prop
-
+  onUpdateSessionStartTime?: (planDate: string, taskId: string, sessionNumber: number, newStartTime: string) => void; // NEW PROP for editing session start time
 }
 
 // Force warnings UI to be hidden for all users on first load unless they have a preference
@@ -26,7 +26,7 @@ if (typeof window !== 'undefined') {
   }
 }
 
-const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedCommitments, onSelectTask, onGenerateStudyPlan, onUndoSessionDone, settings, onAddFixedCommitment, onSkipMissedSession, onRedistributeMissedSessions, onEnhancedRedistribution }) => {
+const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedCommitments, onSelectTask, onGenerateStudyPlan, onUndoSessionDone, settings, onAddFixedCommitment, onSkipMissedSession, onRedistributeMissedSessions, onEnhancedRedistribution, onUpdateSessionStartTime }) => {
   const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
   const [] = useState<{ taskTitle: string; unscheduledMinutes: number } | null>(null);
   const [showRegenerateConfirmation, setShowRegenerateConfirmation] = useState(false);
@@ -34,6 +34,14 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
   const [reschedModal, setReschedModal] = useState<{ open: boolean; task: any | null }>({ open: false, task: null });
   const [reschedDate, setReschedDate] = useState<string>("");
   const [reschedTime, setReschedTime] = useState<string>("");
+  // Edit start time modal state
+  const [editStartTimeModal, setEditStartTimeModal] = useState<{ 
+    open: boolean; 
+    session: StudySession | null; 
+    planDate: string; 
+    task: Task | null;
+  }>({ open: false, session: null, planDate: "", task: null });
+  const [newStartTime, setNewStartTime] = useState<string>("");
 
   // Track skipped tasks by title+deadline
   const [] = useState<{ title: string; deadline: string }[]>([]);
@@ -142,6 +150,16 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
 
   // Function to reschedule a single session using MOVE logic
 
+
+  const handleEditStartTime = (session: StudySession, planDate: string, task: Task) => {
+    setEditStartTimeModal({
+      open: true,
+      session,
+      planDate,
+      task
+    });
+    setNewStartTime(session.startTime || "");
+  };
 
   const rescheduleIndividualSession = (item: {
     session: StudySession;
@@ -935,6 +953,19 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
                     Undo
                   </button>
                 )}
+                {/* Edit start time button for all sessions */}
+                {!isDone && !isCompleted && onUpdateSessionStartTime && (
+                  <button
+                    onClick={e => { 
+                      e.stopPropagation(); 
+                      handleEditStartTime(session, todaysPlan.date, task);
+                    }}
+                    className="ml-4 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+                    title="Edit session start time"
+                  >
+                    Edit Time
+                  </button>
+                )}
                 {/* Undo button for rescheduled sessions */}
                 {isRescheduled && session.originalTime && (
                   <div className="flex space-x-2 ml-4">
@@ -1064,6 +1095,19 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
                               </span>
                             )}
                             </div>
+                            {/* Edit start time button for upcoming sessions */}
+                            {onUpdateSessionStartTime && (
+                              <button
+                                onClick={e => { 
+                                  e.stopPropagation(); 
+                                  handleEditStartTime(session, plan.date, task);
+                                }}
+                                className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+                                title="Edit session start time"
+                              >
+                                Edit Time
+                              </button>
+                            )}
                             {/* Skip button for rescheduled sessions */}
                             {isRescheduled && session.originalTime && (
                               <button
@@ -1090,6 +1134,134 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
       )}
 
 
+
+      {/* Modern Edit Start Time Modal */}
+      {editStartTimeModal.open && editStartTimeModal.session && editStartTimeModal.task && onUpdateSessionStartTime && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                  <Clock className="text-blue-600 dark:text-blue-400" size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Session Time</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Adjust when you want to start</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditStartTimeModal({ open: false, session: null, planDate: "", task: null })}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+              >
+                <X size={20} className="text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Task Info */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                <h3 className="font-medium text-gray-900 dark:text-white mb-2">{editStartTimeModal.task.title}</h3>
+                <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-300">
+                  <span>Current: {editStartTimeModal.session.startTime} - {editStartTimeModal.session.endTime}</span>
+                  <span>•</span>
+                  <span>{formatTime(editStartTimeModal.session.allocatedHours)}</span>
+                </div>
+              </div>
+
+              {/* Time Input */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  New Start Time
+                </label>
+                <div className="relative">
+                  <input
+                    type="time"
+                    value={newStartTime}
+                    onChange={e => setNewStartTime(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    min="06:00"
+                    max="23:00"
+                  />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <Clock size={16} className="text-gray-400" />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Choose a time between 6:00 AM and 11:00 PM
+                </p>
+              </div>
+
+              {/* Conflict Prevention Info */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-blue-600 dark:text-blue-400 text-xs font-bold">!</span>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">Conflict Prevention</h4>
+                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                      The system will automatically check for conflicts with:
+                    </p>
+                    <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+                      <li>• Other study sessions</li>
+                      <li>• Fixed commitments (classes, work, etc.)</li>
+                      <li>• Daily study limits</li>
+                      <li>• Buffer time requirements</li>
+                      <li>• Study window restrictions</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Warning */}
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle size={16} className="text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium text-yellow-900 dark:text-yellow-100">Note</h4>
+                    <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                      This change will be reset if you modify settings, add new tasks, or regenerate your study plan.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setEditStartTimeModal({ open: false, session: null, planDate: "", task: null })}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!newStartTime || newStartTime === editStartTimeModal.session.startTime}
+                onClick={() => {
+                  if (onUpdateSessionStartTime && editStartTimeModal.session && editStartTimeModal.planDate && editStartTimeModal.task) {
+                    onUpdateSessionStartTime(
+                      editStartTimeModal.planDate,
+                      editStartTimeModal.session.taskId,
+                      editStartTimeModal.session.sessionNumber || 0,
+                      newStartTime
+                    );
+                    setEditStartTimeModal({ open: false, session: null, planDate: "", task: null });
+                  }
+                }}
+                className={`px-6 py-2 rounded-xl font-medium transition-all ${
+                  !newStartTime || newStartTime === editStartTimeModal.session.startTime
+                    ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl'
+                }`}
+              >
+                Update Time
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {studyPlans.length === 0 && (
         <div className="bg-white rounded-xl shadow-lg p-6 text-center dark:bg-gray-900 dark:shadow-gray-900">
