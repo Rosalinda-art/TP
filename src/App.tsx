@@ -1786,6 +1786,8 @@ function App() {
         }
     };
 
+
+
     // Interactive tutorial handlers
     const handleStartTutorial = () => {
         setShowInteractiveTutorial(true);
@@ -2122,6 +2124,7 @@ function App() {
                             onRedistributeMissedSessions={handleRedistributeMissedSessions}
                             onEnhancedRedistribution={handleEnhancedRedistribution}
                             onUpdateSessionStartTime={handleUpdateSessionStartTime}
+
                         />
                     )}
 

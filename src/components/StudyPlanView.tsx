@@ -42,6 +42,7 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
     task: Task | null;
   }>({ open: false, session: null, planDate: "", task: null });
   const [newStartTime, setNewStartTime] = useState<string>("");
+
   // Track skipped tasks by title+deadline
   const [] = useState<{ title: string; deadline: string }[]>([]);
   const [, setShowCompromisedWarning] = useState(false);
@@ -148,6 +149,8 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
 
 
   // Function to reschedule a single session using MOVE logic
+
+
   const handleEditStartTime = (session: StudySession, planDate: string, task: Task) => {
     setEditStartTimeModal({
       open: true,
@@ -155,7 +158,7 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
       planDate,
       task
     });
-    setNewStartTime(session.startTime);
+    setNewStartTime(session.startTime || "");
   };
 
   const rescheduleIndividualSession = (item: {
@@ -950,6 +953,19 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
                     Undo
                   </button>
                 )}
+                {/* Edit start time button for all sessions */}
+                {!isDone && !isCompleted && onUpdateSessionStartTime && (
+                  <button
+                    onClick={e => { 
+                      e.stopPropagation(); 
+                      handleEditStartTime(session, todaysPlan.date, task);
+                    }}
+                    className="ml-4 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
+                    title="Edit session start time"
+                  >
+                    Edit Time
+                  </button>
+                )}
                 {/* Undo button for rescheduled sessions */}
                 {isRescheduled && session.originalTime && (
                   <div className="flex space-x-2 ml-4">
@@ -965,19 +981,7 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
                     </button>
                   </div>
                 )}
-                {/* Edit start time button for all sessions */}
-                {!isDone && !isCompleted && onUpdateSessionStartTime && (
-                  <button
-                    onClick={e => { 
-                      e.stopPropagation(); 
-                      handleEditStartTime(session, todaysPlan.date, task);
-                    }}
-                    className="ml-4 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors duration-200 dark:bg-blue-900 dark:text-blue-300 dark:hover:bg-blue-800"
-                    title="Edit session start time"
-                  >
-                    Edit Time
-                  </button>
-                )}
+
               </div>
             );
           })}
@@ -1091,19 +1095,6 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
                               </span>
                             )}
                             </div>
-                            {/* Skip button for rescheduled sessions */}
-                            {isRescheduled && session.originalTime && (
-                              <button
-                                onClick={e => { 
-                                  e.stopPropagation(); 
-                                  onSkipMissedSession(plan.date, session.sessionNumber || 0, session.taskId);
-                                }}
-                                className="px-3 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors duration-200 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800"
-                                title="Skip this rescheduled session"
-                              >
-                                Skip
-                              </button>
-                            )}
                             {/* Edit start time button for upcoming sessions */}
                             {onUpdateSessionStartTime && (
                               <button
@@ -1117,6 +1108,20 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
                                 Edit Time
                               </button>
                             )}
+                            {/* Skip button for rescheduled sessions */}
+                            {isRescheduled && session.originalTime && (
+                              <button
+                                onClick={e => { 
+                                  e.stopPropagation(); 
+                                  onSkipMissedSession(plan.date, session.sessionNumber || 0, session.taskId);
+                                }}
+                                className="px-3 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors duration-200 dark:bg-yellow-900 dark:text-yellow-200 dark:hover:bg-yellow-800"
+                                title="Skip this rescheduled session"
+                              >
+                                Skip
+                              </button>
+                            )}
+
                           </div>
                         </div>
                       );
@@ -1128,94 +1133,131 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
         </div>
       )}
 
-      {/* Edit Start Time Modal */}
+
+
+      {/* Modern Edit Start Time Modal */}
       {editStartTimeModal.open && editStartTimeModal.session && editStartTimeModal.task && onUpdateSessionStartTime && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center space-x-2">
-                  <Clock className="text-blue-500" size={24} />
-                  <span>Edit Session Start Time</span>
-                </h2>
-                <button
-                  onClick={() => setEditStartTimeModal({ open: false, session: null, planDate: "", task: null })}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                >
-                  <X size={24} />
-                </button>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                  <Clock className="text-blue-600 dark:text-blue-400" size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Edit Session Time</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">Adjust when you want to start</p>
+                </div>
               </div>
-              <div className="mb-4">
-                <div className="font-semibold text-gray-700 dark:text-gray-200 mb-1">{editStartTimeModal.task.title}</div>
-                <div className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                  Current time: {editStartTimeModal.session.startTime} - {editStartTimeModal.session.endTime}
+              <button
+                onClick={() => setEditStartTimeModal({ open: false, session: null, planDate: "", task: null })}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+              >
+                <X size={20} className="text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Task Info */}
+              <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                <h3 className="font-medium text-gray-900 dark:text-white mb-2">{editStartTimeModal.task.title}</h3>
+                <div className="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-300">
+                  <span>Current: {editStartTimeModal.session.startTime} - {editStartTimeModal.session.endTime}</span>
+                  <span>•</span>
+                  <span>{formatTime(editStartTimeModal.session.allocatedHours)}</span>
                 </div>
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg dark:bg-yellow-900/20 dark:border-yellow-800">
-                  <div className="flex items-start space-x-2">
-                    <AlertTriangle className="text-yellow-600 dark:text-yellow-400 mt-0.5" size={16} />
-                    <div className="text-sm text-yellow-800 dark:text-yellow-200">
-                      <p className="font-medium mb-1">Note:</p>
-                      <p>This change will be reset if you:</p>
-                      <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>Modify settings</li>
-                        <li>Add new tasks</li>
-                        <li>Regenerate study plan</li>
-                        <li>Make other scheduling changes</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
-                  <div className="flex items-start space-x-2">
-                    <Clock className="text-blue-600 dark:text-blue-400 mt-0.5" size={16} />
-                    <div className="text-sm text-blue-800 dark:text-blue-200">
-                      <p className="font-medium mb-1">Conflict Prevention:</p>
-                      <p>The system will automatically check for conflicts with:</p>
-                      <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>Other study sessions</li>
-                        <li>Fixed commitments (classes, work, etc.)</li>
-                        <li>Daily study limits</li>
-                        <li>Buffer time requirements</li>
-                        <li>Study window restrictions</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-200">New Start Time</label>
+              </div>
+
+              {/* Time Input */}
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  New Start Time
+                </label>
+                <div className="relative">
                   <input
                     type="time"
-                    className="border rounded px-3 py-2 dark:bg-gray-700 dark:text-white"
                     value={newStartTime}
                     onChange={e => setNewStartTime(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    min="06:00"
+                    max="23:00"
                   />
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                    <Clock size={16} className="text-gray-400" />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Choose a time between 6:00 AM and 11:00 PM
+                </p>
+              </div>
+
+              {/* Conflict Prevention Info */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-6 h-6 bg-blue-100 dark:bg-blue-800 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-blue-600 dark:text-blue-400 text-xs font-bold">!</span>
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100">Conflict Prevention</h4>
+                    <p className="text-xs text-blue-800 dark:text-blue-200">
+                      The system will automatically check for conflicts with:
+                    </p>
+                    <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+                      <li>• Other study sessions</li>
+                      <li>• Fixed commitments (classes, work, etc.)</li>
+                      <li>• Daily study limits</li>
+                      <li>• Buffer time requirements</li>
+                      <li>• Study window restrictions</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-2 mt-4">
-                <button
-                  onClick={() => setEditStartTimeModal({ open: false, session: null, planDate: "", task: null })}
-                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600"
-                >
-                  Cancel
-                </button>
-                <button
-                  disabled={!newStartTime || newStartTime === editStartTimeModal.session.startTime}
-                  onClick={() => {
-                    if (onUpdateSessionStartTime && editStartTimeModal.session && editStartTimeModal.planDate && editStartTimeModal.task) {
-                      onUpdateSessionStartTime(
-                        editStartTimeModal.planDate,
-                        editStartTimeModal.session.taskId,
-                        editStartTimeModal.session.sessionNumber || 0,
-                        newStartTime
-                      );
-                      setEditStartTimeModal({ open: false, session: null, planDate: "", task: null });
-                    }
-                  }}
-                  className={`px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors ${(!newStartTime || newStartTime === editStartTimeModal.session.startTime) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  Update Time
-                </button>
+
+              {/* Warning */}
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
+                <div className="flex items-start space-x-3">
+                  <AlertTriangle size={16} className="text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-medium text-yellow-900 dark:text-yellow-100">Note</h4>
+                    <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                      This change will be reset if you modify settings, add new tasks, or regenerate your study plan.
+                    </p>
+                  </div>
+                </div>
               </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={() => setEditStartTimeModal({ open: false, session: null, planDate: "", task: null })}
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!newStartTime || newStartTime === editStartTimeModal.session.startTime}
+                onClick={() => {
+                  if (onUpdateSessionStartTime && editStartTimeModal.session && editStartTimeModal.planDate && editStartTimeModal.task) {
+                    onUpdateSessionStartTime(
+                      editStartTimeModal.planDate,
+                      editStartTimeModal.session.taskId,
+                      editStartTimeModal.session.sessionNumber || 0,
+                      newStartTime
+                    );
+                    setEditStartTimeModal({ open: false, session: null, planDate: "", task: null });
+                  }
+                }}
+                className={`px-6 py-2 rounded-xl font-medium transition-all ${
+                  !newStartTime || newStartTime === editStartTimeModal.session.startTime
+                    ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl'
+                }`}
+              >
+                Update Time
+              </button>
             </div>
           </div>
         </div>
