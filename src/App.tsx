@@ -1773,8 +1773,16 @@ function App() {
             setNotificationMessage(result.message);
             setTimeout(() => setNotificationMessage(null), 3000);
         } else {
-            setNotificationMessage(result.message);
-            setTimeout(() => setNotificationMessage(null), 5000);
+            // Create detailed error message with conflict information
+            let errorMessage = result.message;
+            if (result.conflicts && result.conflicts.length > 0) {
+                errorMessage += '\n\nConflicts found:';
+                result.conflicts.forEach((conflict, index) => {
+                    errorMessage += `\n${index + 1}. ${conflict.message}`;
+                });
+            }
+            setNotificationMessage(errorMessage);
+            setTimeout(() => setNotificationMessage(null), 8000); // Longer timeout for detailed errors
         }
     };
 

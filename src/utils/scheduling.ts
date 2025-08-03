@@ -3443,6 +3443,35 @@ export const updateSessionStartTime = (
     fixedCommitments
   );
 
+  // Additional validation: Check if the new time would create conflicts with buffer time
+  const bufferTimeBetweenSessions = settings.bufferTimeBetweenSessions || 0;
+  if (bufferTimeBetweenSessions > 0) {
+    const bufferMinutes = bufferTimeBetweenSessions;
+    const newStartMinutes = parseInt(newStartTime.split(':')[0]) * 60 + parseInt(newStartTime.split(':')[1]);
+    const newEndMinutes = parseInt(newEndTime.split(':')[0]) * 60 + parseInt(newEndTime.split(':')[1]);
+    
+    // Check for buffer conflicts with other sessions
+    const otherSessions = plan.plannedTasks.filter(s => s !== session && s.status !== 'skipped');
+    for (const otherSession of otherSessions) {
+      const otherStartMinutes = parseInt(otherSession.startTime.split(':')[0]) * 60 + parseInt(otherSession.startTime.split(':')[1]);
+      const otherEndMinutes = parseInt(otherSession.endTime.split(':')[0]) * 60 + parseInt(otherSession.endTime.split(':')[1]);
+      
+      // Check if sessions are too close together (violating buffer time)
+      if (Math.abs(newStartMinutes - otherEndMinutes) < bufferMinutes || 
+          Math.abs(otherStartMinutes - newEndMinutes) < bufferMinutes) {
+        return {
+          success: false,
+          updatedPlans: studyPlans,
+          message: `Time slot violates buffer time requirement (${bufferMinutes} minutes between sessions)`,
+          conflicts: [{
+            type: 'buffer_violation',
+            message: `Session too close to existing session (${otherSession.startTime} - ${otherSession.endTime})`
+          }]
+        };
+      }
+    }
+  }
+
   if (!conflicts.isValid) {
     return {
       success: false,

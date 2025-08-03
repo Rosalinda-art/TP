@@ -1165,6 +1165,22 @@ const StudyPlanView: React.FC<StudyPlanViewProps> = ({ studyPlans, tasks, fixedC
                     </div>
                   </div>
                 </div>
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg dark:bg-blue-900/20 dark:border-blue-800">
+                  <div className="flex items-start space-x-2">
+                    <Clock className="text-blue-600 dark:text-blue-400 mt-0.5" size={16} />
+                    <div className="text-sm text-blue-800 dark:text-blue-200">
+                      <p className="font-medium mb-1">Conflict Prevention:</p>
+                      <p>The system will automatically check for conflicts with:</p>
+                      <ul className="list-disc list-inside mt-1 space-y-1">
+                        <li>Other study sessions</li>
+                        <li>Fixed commitments (classes, work, etc.)</li>
+                        <li>Daily study limits</li>
+                        <li>Buffer time requirements</li>
+                        <li>Study window restrictions</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-200">New Start Time</label>
                   <input
